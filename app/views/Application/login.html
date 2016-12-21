@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Test Relying Party - Login</title>
+<style>
+	body {
+		width: 1000px;
+		margin: 0 auto;
+		text-align: center;		
+		background: url("../public/images/wallpaper1.jpg") 100% 100%;
+	}
+</style>
+</head>
+<body>
+	<h1>This is a test relying party web application</h1>
+	<form action=" http://localhost:8080/openid-connect-server-webapp/authorize" method="get">
+		<input id="clientId" name="client_id" type="hidden" value="client"> 
+		<input id="scope" name="scope" type="hidden" value="openid profile email"> 
+		<input id="redirectUri" name="redirect_uri" type="hidden" value="http://localhost:7070/user"> 
+		<input id="responseType" name="response_type" type="hidden" value="code"> 
+		<input id="state" name="state" type="hidden" value="12345">
+
+		<button type="submit"
+			style="border: 0; background: red; vertical-align: top; color: white; padding: 8px 20px; cursor: pointer; border-radius: 2px; font-weight: bold;">Login</button>
+	</form>	
+</body>
+</html>

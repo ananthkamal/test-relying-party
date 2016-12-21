@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Test Relying Party - Home</title>
+<style>
+	body {
+			width: 1000px;
+			margin: 0 auto;
+			text-align: center;		
+		}
+</style>
+</head>
+<body>
+	<h1>Good Relying Party - Home</h1>
+	<!-- <div>Authorization Code: ${ userPageData.code }</div>
+	<div>State: ${ userPageData.state }</div> -->
+	<!-- <div>Error: ${ userPageData.error }</div>
+	<div>Error Description: ${ userPageData.error_description }</div> -->
+	
+	<div 
+		style="position: relative; height: 40px; text-align: left; padding: 10px 25px; background-color: #444;">
+		
+		
+		<span id="displayName" style="display: inline-block; margin-left: 5px; vertical-align: super; color: white;"></span>		
+		<span style="float: right; margin: 7px 0;">
+			<a id="logoutLink" href="#">
+				<button style="cursor: pointer; padding: 8px 25px; background-color: #ED1C24; color: #FFF; border: none; text=decoration: none; border-radius: 3px">Sign Out</button>
+			</a>
+		</span>
+		<span style="float: right; margin: 7px 10px;">
+			<a id="behindTheScenes" href="#">
+				<button style="cursor: pointer; padding: 8px 25px; background-color: #ED1C24; color: #FFF; border: none; text=decoration: none; border-radius: 3px">Behind the scenes</button>
+			</a>
+		</span>		
+	</div>
+	
+	<div id="behindTheScenesContainer" style="text-align: center; margin-left: 20px; margin-right: 20px; display: block;">
+		<div style="margin: 10px;">
+			<button id="displayTokenButton" style="font-size: 1em; padding: 8px 20px;">Fetch Access Token</button>
+			<button id="displayUserInfoButton" style="font-size: 1em; padding: 8px 20px;">Fetch User Info</button>			
+		</div>
+		<div id="displayUserInfo"></div>
+		<div id="displayJwt"></div>
+	</div>
+	
+	<!-- Libraries -->
+	<script src="//code.jquery.com/jquery-1.11.2.min.js"></script>
+	<script src="//code.jquery.com/jquery-migrate-1.2.1.min.js"></script>
+	<script src="/public/javascripts/jwt.js"></script>	
+	<!-- End of Libraries -->	
+	
+	<script>
+		
+		var access_token = "";
+		
+		var accessToken = "";
+		var idClaims = {};
+		var accessClaims = {};
+		var user = {};
+		
+		var displayUserInfo = function(user) {
+			$("#displayName").html("Welcome, "+user.firstName+" "+user.lastName);
+			/* $("#displayImage").attr("src", user.image); */
+		};
+		
+		// Not Implemented Completely
+		$("#logoutLink").click(function(){
+			$.ajax({
+				url: "${userPageData.logoutUrl}",
+				dataType: "jsonp",
+				type: "GET",
+				success: function(data){
+					console.log("Logged Out of OpenID server");					
+				}
+			});
+			window.location.href = "${userPageData.loginUrl}";
+		});
+		
+		var fetchJwt = function(code){
+			$.ajax({
+				url: "/jwt?code="+code,
+				dataType: "json",
+				type: "GET",
+				data: {},
+				success: function(data){
+					//console.log(data);
+					var jwtLocal = data;
+					access_token = jwtLocal.access_token;
+					
+					var idToken = jwt.WebTokenParser.parse(jwtLocal.id_token);
+					idClaims = JSON.parse(jwt.base64urldecode(idToken.payloadSegment));
+					
+					accessToken = jwt.WebTokenParser.parse(jwtLocal.access_token);
+					accessClaims = JSON.parse(jwt.base64urldecode(accessToken.payloadSegment));
+					console.log(access_token);	
+					fetchUserInfo(access_token);
+				}
+			});
+		};
+		
+		var parseToken = function(accessTokenFromUrl, idTokenFromUrl){
+			access_token = accessTokenFromUrl;
+			console.log(access_token);
+			
+			var idToken = jwt.WebTokenParser.parse(idTokenFromUrl);
+			idClaims = JSON.parse(jwt.base64urldecode(idToken.payloadSegment));
+			
+			var accessToken = jwt.WebTokenParser.parse(accessTokenFromUrl);
+			accessClaims = JSON.parse(jwt.base64urldecode(accessToken.payloadSegment));			
+			
+		};
+		
+		var fetchUserInfo = function(accessToken){
+			$.ajax({
+				url: "/user/info?token="+accessToken,
+				type: "GET",
+				data: {},
+				success: function(data){
+					//console.log(data);
+					$('#userInfoData').html(data);
+					user = JSON.parse(data);
+					displayUserInfo(user);
+				}
+			});
+		}
+		
+		$.urlParam = function(name){
+			var results = new RegExp('[\?&#]' + name + '=([^&#]*)').exec(window.location.href);
+			return results[1] || 0;
+		}
+		
+		$(document).ready(function(){
+			$("#fetchUserInfo").hide();
+			$("#behindTheScenesContainer").hide();
+			
+			setTimeout(function(){
+				//console.log("Code: "+$.urlParam("code"));
+				try {
+					fetchJwt($.urlParam("code"));	
+				} catch(e1) {
+					console.log("Could not find authcode in the url. Looking for access token...");
+					console.log(e1);
+					try{
+						parseToken($.urlParam("access_token"), $.urlParam("id_token"));
+						// submitPayment($.urlParam("access_token"));
+					} catch(e2){
+						console.log("Could not find access token in the url. Something went wrong.");
+						console.log(e2);	
+					}																						
+				}
+				
+			}, 10);
+			
+		});
+		
+		$("#behindTheScenes").toggle(function() {
+			
+			$("#behindTheScenesContainer").show();
+			$("#displayUserInfoButton").hide();
+			
+			$("#content, #sidebar").slideUp("slow", function(){
+				
+			});
+		}, function() {
+			$("#behindTheScenesContainer").hide();
+			
+			$("#content, #sidebar").slideDown("slow", function(){
+				
+			});
+		});
+		
+		$('#displayTokenButton').click(function(){
+			$("#displayJwt").append("<h3 style='margin: 10px;'>Access Token - Decoded</h3>");
+			
+			$.each(accessClaims, function(key, value){
+				$("#displayJwt").append("<div>"+key+": "+ value + "</div><br>");
+			});
+			
+			$("#displayJwt").append("<h3 style='margin: 10px;'>ID Token - Decoded</h3>");
+			
+			$.each(idClaims, function(key, value){
+				$("#displayJwt").append("<div>"+key+": "+ value + "</div><br>");
+			});
+			$('#displayTokenButton').attr("disabled", "disabled");
+			setTimeout(function(){
+				$("#displayUserInfoButton").show();
+			}, 500);			
+		});
+		
+		$('#displayUserInfoButton').click(function(){
+			$("#displayUserInfo").append("<h3 style='margin: 10px;'>User Info</h3>");
+			console.log(user);
+			console.log(user.name);
+			$.each(user, function(key, value){
+				$("#displayUserInfo").append("<div>"+key+": <span id='"+key+"' style='word-wrap: break-word;'>"+ JSON.stringify(value).substring(0, 1000) + "</span></div><br>"); 						
+			});
+			$("#displayUserInfoButton").attr("disabled", "disabled");
+		});
+		
+	</script>
+	
+</body>
+</html>
